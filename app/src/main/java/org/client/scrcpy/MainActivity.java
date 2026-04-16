@@ -62,6 +62,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     // 是否直接连接远程
     public final static String START_REMOTE = "start_remote_headless";
 
+    private static final String PAIRING_CODE_PATTERN = "\\d{6}";
+
     private boolean headlessMode = false;  // 是否为无头模式，不显示操作选项等
     private int screenWidth;
     private int screenHeight;
@@ -799,13 +801,15 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     /**
      * Validates that the string is a syntactically correct IPv4 address with each octet 0-255.
      * Rejects octets with leading zeros (e.g. "01") to avoid octal-interpretation ambiguity.
+     * Note: single-character "0" has length == 1, so the length > 1 guard correctly allows "0.0.0.0".
      */
     private boolean isValidIpAddress(String ip) {
         if (TextUtils.isEmpty(ip)) return false;
         String[] parts = ip.split("\\.");
         if (parts.length != 4) return false;
         for (String part : parts) {
-            if (part.length() > 1 && part.startsWith("0")) return false; // reject leading zeros
+            // length > 1 guard: "0" (len 1) is valid; "00" or "01" (len > 1) are rejected
+            if (part.length() > 1 && part.startsWith("0")) return false;
             try {
                 int val = Integer.parseInt(part);
                 if (val < 0 || val > 255) return false;
@@ -876,7 +880,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     etPort.setError(getString(R.string.pairing_error_port_invalid));
                     return;
                 }
-                if (!code.matches("\\d{6}")) {
+                if (!code.matches(PAIRING_CODE_PATTERN)) {
                     etCode.setError(getString(R.string.pairing_error_code_invalid));
                     return;
                 }

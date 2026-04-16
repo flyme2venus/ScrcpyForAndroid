@@ -140,7 +140,7 @@ public class ExecUtil {
             }
             processBuilder.redirectErrorStream(true); // merge stderr into stdout to avoid buffer deadlock
             process = processBuilder.start();
-            process.getOutputStream().close(); // close stdin immediately; adb pair reads code from args
+            process.getOutputStream().close(); // close stdin immediately; adb pair does not require stdin input
             StringBuilder combined = new StringBuilder();
             reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String s;

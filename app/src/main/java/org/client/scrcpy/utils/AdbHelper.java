@@ -179,12 +179,23 @@ public class AdbHelper {
     }
 
     /**
-     * Execute "adb pair <ip>:<pairingPort> <pairingCode>" and return the combined output.
-     * Requires Android 11+ (API 30) on the target device for the pairing protocol to work.
-     *
-     * @return combined stdout+stderr from the adb pair command
+     * Result of a wireless debug pairing attempt.
      */
-    public static String pairDevice(Context mContext, String ip, int pairingPort, String pairingCode) {
+    public static class PairResult {
+        public final boolean success;
+        public final String output;
+
+        public PairResult(boolean success, String output) {
+            this.success = success;
+            this.output = output;
+        }
+    }
+
+    /**
+     * Execute "adb pair <ip>:<pairingPort> <pairingCode>" and return the result.
+     * Requires Android 11+ (API 30) on the target device for the pairing protocol to work.
+     */
+    public static PairResult pairDevice(Context mContext, String ip, int pairingPort, String pairingCode) {
         String[] cmds = new String[]{
                 mContext.getApplicationInfo().nativeLibraryDir + "/libadb.so",
                 "pair",
@@ -201,7 +212,10 @@ public class AdbHelper {
 
         genKeyFile(mContext);
 
-        return ExecUtil.adbCommendCombined(cmds, env, mContext.getFilesDir());
+        int[] exitCodeHolder = new int[]{-1};
+        String output = ExecUtil.adbCommendCombined(cmds, env, mContext.getFilesDir(), exitCodeHolder);
+        boolean success = exitCodeHolder[0] == 0;
+        return new PairResult(success, output);
     }
 
     public static void writeAssetsJarServer(Context context) {

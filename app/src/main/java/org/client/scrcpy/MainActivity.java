@@ -797,6 +797,26 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     }
 
     /**
+     * Validates that the string is a syntactically correct IPv4 address with each octet 0-255.
+     * Rejects octets with leading zeros (e.g. "01") to avoid octal-interpretation ambiguity.
+     */
+    private boolean isValidIpAddress(String ip) {
+        if (TextUtils.isEmpty(ip)) return false;
+        String[] parts = ip.split("\\.");
+        if (parts.length != 4) return false;
+        for (String part : parts) {
+            if (part.length() > 1 && part.startsWith("0")) return false; // reject leading zeros
+            try {
+                int val = Integer.parseInt(part);
+                if (val < 0 || val > 255) return false;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Show the wireless debug pairing dialog (Android 11+ only).
      * Users enter IP, pairing port and 6-digit pairing code; the pair command is
      * executed on a background thread, and the result is shown as a Toast.
@@ -844,7 +864,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     etIp.setError(getString(R.string.pairing_error_ip_empty));
                     return;
                 }
-                if (!android.util.Patterns.IP_ADDRESS.matcher(ip).matches()) {
+                if (!isValidIpAddress(ip)) {
                     etIp.setError(getString(R.string.pairing_error_ip_invalid));
                     return;
                 }
@@ -875,26 +895,27 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 final String finalCode = code;
 
                 ThreadUtils.execute(() -> {
-                    String result;
+                    AdbHelper.PairResult result;
                     try {
                         result = AdbHelper.pairDevice(App.mContext, finalIp, finalPort, finalCode);
                     } catch (Exception e) {
-                        result = e.getMessage() != null ? e.getMessage() : e.toString();
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        result = new AdbHelper.PairResult(false, msg);
                     }
-                    final String finalResult = result;
+                    final AdbHelper.PairResult finalResult = result;
                     ThreadUtils.post(() -> {
                         progressBar.setVisibility(android.view.View.GONE);
                         positiveBtn.setEnabled(true);
                         alertDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
-                        if (!TextUtils.isEmpty(finalResult) && finalResult.toLowerCase().contains("successfully")) {
+                        if (finalResult.success) {
                             alertDialog.dismiss();
                             Toast.makeText(context,
-                                    getString(R.string.pairing_success) + "\n" + finalResult,
+                                    getString(R.string.pairing_success) + "\n" + finalResult.output,
                                     Toast.LENGTH_LONG).show();
                         } else {
-                            String errMsg = TextUtils.isEmpty(finalResult)
+                            String errMsg = TextUtils.isEmpty(finalResult.output)
                                     ? getString(R.string.pairing_failed)
-                                    : getString(R.string.pairing_failed) + ": " + finalResult;
+                                    : getString(R.string.pairing_failed) + ": " + finalResult.output;
                             Toast.makeText(context, errMsg, Toast.LENGTH_LONG).show();
                         }
                     });

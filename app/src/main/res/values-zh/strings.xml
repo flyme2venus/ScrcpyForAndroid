@@ -36,11 +36,9 @@
     <string name="pairing_in_progress">配对中…</string>
     <string name="pairing_success">配对成功</string>
     <string name="pairing_failed">配对失败</string>
-    <string name="pairing_not_supported">无线调试配对码仅支持 Android 11+</string>
+    <string name="pairing_not_supported">无线调试配对功能仅支持 Android 11+</string>
     <string name="pairing_error_ip_empty">IP 地址不能为空</string>
     <string name="pairing_error_ip_invalid">IP 地址格式不合法</string>
     <string name="pairing_error_port_invalid">端口号必须在 1 到 65535 之间</string>
     <string name="pairing_error_code_invalid">配对码必须为 6 位数字</string>
 </resources>
-
-

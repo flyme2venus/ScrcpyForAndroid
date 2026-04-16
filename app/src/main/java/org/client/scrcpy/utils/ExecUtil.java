@@ -121,38 +121,42 @@ public class ExecUtil {
      * Like adbCommend but returns stdout + stderr combined so callers can inspect error messages.
      */
     public static String adbCommendCombined(String[] cmd, Map<String, String> env, File workDir) {
+        int[] exitCodeHolder = new int[]{-1};
+        return adbCommendCombined(cmd, env, workDir, exitCodeHolder);
+    }
+
+    /**
+     * Like adbCommend but returns stdout + stderr combined and stores the process exit code in
+     * {@code exitCodeHolder[0]}.
+     */
+    public static String adbCommendCombined(String[] cmd, Map<String, String> env, File workDir, int[] exitCodeHolder) {
         Process process = null;
-        DataOutputStream os = null;
-        BufferedReader successResult = null;
-        BufferedReader errorResult = null;
+        BufferedReader reader = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
             Map<String, String> envs = processBuilder.environment();
             for (String s : env.keySet()) {
                 envs.put(s, env.get(s));
             }
+            processBuilder.redirectErrorStream(true); // merge stderr into stdout to avoid buffer deadlock
             process = processBuilder.start();
-            os = new DataOutputStream(process.getOutputStream());
-            os.flush();
-            process.waitFor();
+            process.getOutputStream().close(); // close stdin immediately; adb pair reads code from args
             StringBuilder combined = new StringBuilder();
-            successResult = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            errorResult = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String s;
-            while ((s = successResult.readLine()) != null) {
+            while ((s = reader.readLine()) != null) {
                 combined.append(s).append("\n");
             }
-            while ((s = errorResult.readLine()) != null) {
-                combined.append(s).append("\n");
+            int exitCode = process.waitFor();
+            if (exitCodeHolder != null && exitCodeHolder.length > 0) {
+                exitCodeHolder[0] = exitCode;
             }
             return combined.toString().trim();
         } catch (Exception e) {
             Log.i("TaskPrint", e.toString());
         } finally {
             try {
-                if (os != null) os.close();
-                if (successResult != null) successResult.close();
-                if (errorResult != null) errorResult.close();
+                if (reader != null) reader.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }

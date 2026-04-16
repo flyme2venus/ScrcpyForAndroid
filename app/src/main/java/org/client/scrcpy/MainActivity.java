@@ -268,6 +268,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             showListPopulWindow(editText);
         });
 
+        final Button pairingButton = findViewById(R.id.button_pairing);
+        pairingButton.setOnClickListener(v -> showPairingDialog());
+
         // 无头模式，实际上要隐藏掉所有控件，否则会被显示出 ip 地址
         if (headlessMode) {
             View scrollView = findViewById(R.id.main_scroll_view);
@@ -791,6 +794,115 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
      */
     protected void connectSuccessExt() {
         Dialog.closeDialogs();
+    }
+
+    /**
+     * Show the wireless debug pairing dialog (Android 11+ only).
+     * Users enter IP, pairing port and 6-digit pairing code; the pair command is
+     * executed on a background thread, and the result is shown as a Toast.
+     */
+    private void showPairingDialog() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Toast.makeText(context, getString(R.string.pairing_not_supported), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
+        android.view.View dialogView = inflater.inflate(R.layout.dialog_pairing, null);
+
+        final EditText etIp = dialogView.findViewById(R.id.editText_pairing_ip);
+        final EditText etPort = dialogView.findViewById(R.id.editText_pairing_port);
+        final EditText etCode = dialogView.findViewById(R.id.editText_pairing_code);
+        final android.widget.ProgressBar progressBar = dialogView.findViewById(R.id.pairing_progress);
+
+        // Pre-fill with last used values
+        String savedIp = PreUtils.get(context, Constant.PAIRING_IP, "");
+        String savedPort = PreUtils.get(context, Constant.PAIRING_PORT, "");
+        if (!TextUtils.isEmpty(savedIp)) {
+            etIp.setText(savedIp);
+        }
+        if (!TextUtils.isEmpty(savedPort)) {
+            etPort.setText(savedPort);
+        }
+
+        android.app.AlertDialog alertDialog = new android.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.pairing_title))
+                .setView(dialogView)
+                .setPositiveButton(getString(R.string.pairing_action), null) // set null to override dismiss behaviour
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+
+        alertDialog.setOnShowListener(dialog -> {
+            Button positiveBtn = alertDialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+            positiveBtn.setOnClickListener(v -> {
+                String ip = etIp.getText().toString().trim();
+                String portStr = etPort.getText().toString().trim();
+                String code = etCode.getText().toString().trim();
+
+                // --- Input validation ---
+                if (TextUtils.isEmpty(ip)) {
+                    etIp.setError(getString(R.string.pairing_error_ip_empty));
+                    return;
+                }
+                if (!android.util.Patterns.IP_ADDRESS.matcher(ip).matches()) {
+                    etIp.setError(getString(R.string.pairing_error_ip_invalid));
+                    return;
+                }
+                int port;
+                try {
+                    port = Integer.parseInt(portStr);
+                    if (port < 1 || port > 65535) throw new NumberFormatException();
+                } catch (NumberFormatException e) {
+                    etPort.setError(getString(R.string.pairing_error_port_invalid));
+                    return;
+                }
+                if (!code.matches("\\d{6}")) {
+                    etCode.setError(getString(R.string.pairing_error_code_invalid));
+                    return;
+                }
+
+                // Save for next time
+                PreUtils.put(context, Constant.PAIRING_IP, ip);
+                PreUtils.put(context, Constant.PAIRING_PORT, portStr);
+
+                // Disable UI during pairing
+                positiveBtn.setEnabled(false);
+                alertDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+                progressBar.setVisibility(android.view.View.VISIBLE);
+
+                final int finalPort = port;
+                final String finalIp = ip;
+                final String finalCode = code;
+
+                ThreadUtils.execute(() -> {
+                    String result;
+                    try {
+                        result = AdbHelper.pairDevice(App.mContext, finalIp, finalPort, finalCode);
+                    } catch (Exception e) {
+                        result = e.getMessage() != null ? e.getMessage() : e.toString();
+                    }
+                    final String finalResult = result;
+                    ThreadUtils.post(() -> {
+                        progressBar.setVisibility(android.view.View.GONE);
+                        positiveBtn.setEnabled(true);
+                        alertDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
+                        if (!TextUtils.isEmpty(finalResult) && finalResult.toLowerCase().contains("successfully")) {
+                            alertDialog.dismiss();
+                            Toast.makeText(context,
+                                    getString(R.string.pairing_success) + "\n" + finalResult,
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            String errMsg = TextUtils.isEmpty(finalResult)
+                                    ? getString(R.string.pairing_failed)
+                                    : getString(R.string.pairing_failed) + ": " + finalResult;
+                            Toast.makeText(context, errMsg, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                });
+            });
+        });
+
+        alertDialog.show();
     }
 
     protected void connectExitExt() {

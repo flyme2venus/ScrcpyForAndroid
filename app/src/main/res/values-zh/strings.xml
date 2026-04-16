@@ -22,6 +22,25 @@
     <string name="disconnect_ask">检测到连接已断开，请退出后重新连接</string>
 
     <string name="need_register">需要注册</string>
+
+    <!-- 无线调试配对 -->
+    <string name="pairing_title">无线调试配对</string>
+    <string name="pairing_desc">Android 11+ 无线配对 (adb pair)</string>
+    <string name="pairing_ip_label">设备 IP 地址</string>
+    <string name="pairing_ip_hint">例如: 192.168.1.10</string>
+    <string name="pairing_port_label">配对端口</string>
+    <string name="pairing_port_hint">例如: 37123</string>
+    <string name="pairing_code_label">6 位配对码</string>
+    <string name="pairing_code_hint">例如: 123456</string>
+    <string name="pairing_action">开始配对</string>
+    <string name="pairing_in_progress">配对中…</string>
+    <string name="pairing_success">配对成功</string>
+    <string name="pairing_failed">配对失败</string>
+    <string name="pairing_not_supported">无线调试配对码仅支持 Android 11+</string>
+    <string name="pairing_error_ip_empty">IP 地址不能为空</string>
+    <string name="pairing_error_ip_invalid">IP 地址格式不合法</string>
+    <string name="pairing_error_port_invalid">端口号必须在 1 到 65535 之间</string>
+    <string name="pairing_error_code_invalid">配对码必须为 6 位数字</string>
 </resources>
 
 

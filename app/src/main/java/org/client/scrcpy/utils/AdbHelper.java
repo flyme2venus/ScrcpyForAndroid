@@ -178,6 +178,32 @@ public class AdbHelper {
         return ExecUtil.adbCommend(cmds, env, mContext.getFilesDir());
     }
 
+    /**
+     * Execute "adb pair <ip>:<pairingPort> <pairingCode>" and return the combined output.
+     * Requires Android 11+ (API 30) on the target device for the pairing protocol to work.
+     *
+     * @return combined stdout+stderr from the adb pair command
+     */
+    public static String pairDevice(Context mContext, String ip, int pairingPort, String pairingCode) {
+        String[] cmds = new String[]{
+                mContext.getApplicationInfo().nativeLibraryDir + "/libadb.so",
+                "pair",
+                ip + ":" + pairingPort,
+                pairingCode
+        };
+
+        HashMap<String, String> env = new HashMap<>();
+        env.put("HOME", mContext.getFilesDir().getAbsolutePath());
+        env.put("TMPDIR", mContext.getCacheDir().getAbsolutePath());
+        env.put("ANDROID_ADB_SERVER_PORT", "5137");
+        File keyDir = new File(mContext.getFilesDir().getAbsolutePath(), ".android");
+        env.put("ADB_VENDOR_KEYS", keyDir.getAbsolutePath());
+
+        genKeyFile(mContext);
+
+        return ExecUtil.adbCommendCombined(cmds, env, mContext.getFilesDir());
+    }
+
     public static void writeAssetsJarServer(Context context) {
         AssetManager assetManager = context.getAssets();
         Log.d("Scrcpy", "File scrcpy-server.jar try write");

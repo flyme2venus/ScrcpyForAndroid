@@ -117,6 +117,52 @@ public class ExecUtil {
         return "";
     }
 
+    /**
+     * Like adbCommend but returns stdout + stderr combined so callers can inspect error messages.
+     */
+    public static String adbCommendCombined(String[] cmd, Map<String, String> env, File workDir) {
+        Process process = null;
+        DataOutputStream os = null;
+        BufferedReader successResult = null;
+        BufferedReader errorResult = null;
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
+            Map<String, String> envs = processBuilder.environment();
+            for (String s : env.keySet()) {
+                envs.put(s, env.get(s));
+            }
+            process = processBuilder.start();
+            os = new DataOutputStream(process.getOutputStream());
+            os.flush();
+            process.waitFor();
+            StringBuilder combined = new StringBuilder();
+            successResult = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            errorResult = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            String s;
+            while ((s = successResult.readLine()) != null) {
+                combined.append(s).append("\n");
+            }
+            while ((s = errorResult.readLine()) != null) {
+                combined.append(s).append("\n");
+            }
+            return combined.toString().trim();
+        } catch (Exception e) {
+            Log.i("TaskPrint", e.toString());
+        } finally {
+            try {
+                if (os != null) os.close();
+                if (successResult != null) successResult.close();
+                if (errorResult != null) errorResult.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (process != null) {
+                process.destroy();
+            }
+        }
+        return "";
+    }
+
     public static String adbCommend(String[] cmd, Map<String, String> env, File workDir) {
         Process process = null;
         DataOutputStream os = null;

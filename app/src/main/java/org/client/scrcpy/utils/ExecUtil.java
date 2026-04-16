@@ -117,6 +117,56 @@ public class ExecUtil {
         return "";
     }
 
+    /**
+     * Like adbCommend but returns stdout + stderr combined so callers can inspect error messages.
+     */
+    public static String adbCommendCombined(String[] cmd, Map<String, String> env, File workDir) {
+        int[] exitCodeHolder = new int[]{-1};
+        return adbCommendCombined(cmd, env, workDir, exitCodeHolder);
+    }
+
+    /**
+     * Like adbCommend but returns stdout + stderr combined and stores the process exit code in
+     * {@code exitCodeHolder[0]}.
+     */
+    public static String adbCommendCombined(String[] cmd, Map<String, String> env, File workDir, int[] exitCodeHolder) {
+        Process process = null;
+        BufferedReader reader = null;
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
+            Map<String, String> envs = processBuilder.environment();
+            for (String s : env.keySet()) {
+                envs.put(s, env.get(s));
+            }
+            processBuilder.redirectErrorStream(true); // merge stderr into stdout to avoid buffer deadlock
+            process = processBuilder.start();
+            process.getOutputStream().close(); // close stdin immediately; adb pair does not require stdin input
+            StringBuilder combined = new StringBuilder();
+            reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String s;
+            while ((s = reader.readLine()) != null) {
+                combined.append(s).append("\n");
+            }
+            int exitCode = process.waitFor();
+            if (exitCodeHolder != null && exitCodeHolder.length > 0) {
+                exitCodeHolder[0] = exitCode;
+            }
+            return combined.toString().trim();
+        } catch (Exception e) {
+            Log.i("TaskPrint", e.toString());
+        } finally {
+            try {
+                if (reader != null) reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (process != null) {
+                process.destroy();
+            }
+        }
+        return "";
+    }
+
     public static String adbCommend(String[] cmd, Map<String, String> env, File workDir) {
         Process process = null;
         DataOutputStream os = null;

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="24dp"
+    android:paddingTop="8dp"
+    android:paddingRight="24dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pairing_ip_label"
+        android:textColor="#A8AAB5"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/editText_pairing_ip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/pairing_ip_hint"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:maxLines="1"
+        android:minHeight="48dp"
+        android:textColor="@color/white"
+        android:textColorHint="#A8AAB5"
+        android:textSize="14sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/pairing_port_label"
+        android:textColor="#A8AAB5"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/editText_pairing_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/pairing_port_hint"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLines="1"
+        android:minHeight="48dp"
+        android:textColor="@color/white"
+        android:textColorHint="#A8AAB5"
+        android:textSize="14sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/pairing_code_label"
+        android:textColor="#A8AAB5"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/editText_pairing_code"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/pairing_code_hint"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLength="6"
+        android:maxLines="1"
+        android:minHeight="48dp"
+        android:textColor="@color/white"
+        android:textColorHint="#A8AAB5"
+        android:textSize="14sp" />
+
+    <ProgressBar
+        android:id="@+id/pairing_progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="gone" />
+
+</LinearLayout>

@@ -62,6 +62,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     // 是否直接连接远程
     public final static String START_REMOTE = "start_remote_headless";
 
+    private static final String PAIRING_CODE_PATTERN = "\\d{6}";
+
     private boolean headlessMode = false;  // 是否为无头模式，不显示操作选项等
     private int screenWidth;
     private int screenHeight;
@@ -267,6 +269,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             editText.clearFocus();
             showListPopulWindow(editText);
         });
+
+        final Button pairingButton = findViewById(R.id.button_pairing);
+        pairingButton.setOnClickListener(v -> showPairingDialog());
 
         // 无头模式，实际上要隐藏掉所有控件，否则会被显示出 ip 地址
         if (headlessMode) {
@@ -791,6 +796,138 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
      */
     protected void connectSuccessExt() {
         Dialog.closeDialogs();
+    }
+
+    /**
+     * Validates that the string is a syntactically correct IPv4 address with each octet 0-255.
+     * Rejects octets with leading zeros (e.g. "01") to avoid octal-interpretation ambiguity.
+     * Note: single-character "0" has length == 1, so the length > 1 guard correctly allows "0.0.0.0".
+     */
+    private boolean isValidIpAddress(String ip) {
+        if (TextUtils.isEmpty(ip)) return false;
+        String[] parts = ip.split("\\.");
+        if (parts.length != 4) return false;
+        for (String part : parts) {
+            // length > 1 guard: "0" (len 1) is valid; "00" or "01" (len > 1) are rejected
+            if (part.length() > 1 && part.startsWith("0")) return false;
+            try {
+                int val = Integer.parseInt(part);
+                if (val < 0 || val > 255) return false;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Show the wireless debug pairing dialog (Android 11+ only).
+     * Users enter IP, pairing port and 6-digit pairing code; the pair command is
+     * executed on a background thread, and the result is shown as a Toast.
+     */
+    private void showPairingDialog() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Toast.makeText(context, getString(R.string.pairing_not_supported), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
+        android.view.View dialogView = inflater.inflate(R.layout.dialog_pairing, null);
+
+        final EditText etIp = dialogView.findViewById(R.id.editText_pairing_ip);
+        final EditText etPort = dialogView.findViewById(R.id.editText_pairing_port);
+        final EditText etCode = dialogView.findViewById(R.id.editText_pairing_code);
+        final android.widget.ProgressBar progressBar = dialogView.findViewById(R.id.pairing_progress);
+
+        // Pre-fill with last used values
+        String savedIp = PreUtils.get(context, Constant.PAIRING_IP, "");
+        String savedPort = PreUtils.get(context, Constant.PAIRING_PORT, "");
+        if (!TextUtils.isEmpty(savedIp)) {
+            etIp.setText(savedIp);
+        }
+        if (!TextUtils.isEmpty(savedPort)) {
+            etPort.setText(savedPort);
+        }
+
+        android.app.AlertDialog alertDialog = new android.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.pairing_title))
+                .setView(dialogView)
+                .setPositiveButton(getString(R.string.pairing_action), null) // set null to override dismiss behaviour
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+
+        alertDialog.setOnShowListener(dialog -> {
+            Button positiveBtn = alertDialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+            positiveBtn.setOnClickListener(v -> {
+                String ip = etIp.getText().toString().trim();
+                String portStr = etPort.getText().toString().trim();
+                String code = etCode.getText().toString().trim();
+
+                // --- Input validation ---
+                if (TextUtils.isEmpty(ip)) {
+                    etIp.setError(getString(R.string.pairing_error_ip_empty));
+                    return;
+                }
+                if (!isValidIpAddress(ip)) {
+                    etIp.setError(getString(R.string.pairing_error_ip_invalid));
+                    return;
+                }
+                int port;
+                try {
+                    port = Integer.parseInt(portStr);
+                    if (port < 1 || port > 65535) throw new NumberFormatException();
+                } catch (NumberFormatException e) {
+                    etPort.setError(getString(R.string.pairing_error_port_invalid));
+                    return;
+                }
+                if (!code.matches(PAIRING_CODE_PATTERN)) {
+                    etCode.setError(getString(R.string.pairing_error_code_invalid));
+                    return;
+                }
+
+                // Save for next time
+                PreUtils.put(context, Constant.PAIRING_IP, ip);
+                PreUtils.put(context, Constant.PAIRING_PORT, portStr);
+
+                // Disable UI during pairing
+                positiveBtn.setEnabled(false);
+                alertDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+                progressBar.setVisibility(android.view.View.VISIBLE);
+
+                final int finalPort = port;
+                final String finalIp = ip;
+                final String finalCode = code;
+
+                ThreadUtils.execute(() -> {
+                    AdbHelper.PairResult result;
+                    try {
+                        result = AdbHelper.pairDevice(App.mContext, finalIp, finalPort, finalCode);
+                    } catch (Exception e) {
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        result = new AdbHelper.PairResult(false, msg);
+                    }
+                    final AdbHelper.PairResult finalResult = result;
+                    ThreadUtils.post(() -> {
+                        progressBar.setVisibility(android.view.View.GONE);
+                        positiveBtn.setEnabled(true);
+                        alertDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
+                        if (finalResult.success) {
+                            alertDialog.dismiss();
+                            Toast.makeText(context,
+                                    getString(R.string.pairing_success) + "\n" + finalResult.output,
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            String errMsg = TextUtils.isEmpty(finalResult.output)
+                                    ? getString(R.string.pairing_failed)
+                                    : getString(R.string.pairing_failed) + ": " + finalResult.output;
+                            Toast.makeText(context, errMsg, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                });
+            });
+        });
+
+        alertDialog.show();
     }
 
     protected void connectExitExt() {

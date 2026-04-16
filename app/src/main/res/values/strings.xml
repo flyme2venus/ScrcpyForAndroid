@@ -24,6 +24,25 @@
 
     <string name="need_register">Registration required</string>
 
+    <!-- Wireless debug pairing -->
+    <string name="pairing_title">Wireless Debug Pairing</string>
+    <string name="pairing_desc">Android 11+ wireless pairing (adb pair)</string>
+    <string name="pairing_ip_label">Device IP Address</string>
+    <string name="pairing_ip_hint">e.g. 192.168.1.10</string>
+    <string name="pairing_port_label">Pairing Port</string>
+    <string name="pairing_port_hint">e.g. 37123</string>
+    <string name="pairing_code_label">6-digit Pairing Code</string>
+    <string name="pairing_code_hint">e.g. 123456</string>
+    <string name="pairing_action">Pair</string>
+    <string name="pairing_in_progress">Pairing…</string>
+    <string name="pairing_success">Pairing successful</string>
+    <string name="pairing_failed">Pairing failed</string>
+    <string name="pairing_not_supported">Wireless debug pairing requires Android 11+</string>
+    <string name="pairing_error_ip_empty">IP address cannot be empty</string>
+    <string name="pairing_error_ip_invalid">Invalid IP address format</string>
+    <string name="pairing_error_port_invalid">Port must be between 1 and 65535</string>
+    <string name="pairing_error_code_invalid">Pairing code must be exactly 6 digits</string>
+
     <string-array name="options_resolution_values">
         <item>1920x1080</item>
         <item>1600x720</item>

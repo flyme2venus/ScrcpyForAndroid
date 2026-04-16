@@ -14,4 +14,7 @@ public class Constant {
     public static final String HISTORY_LIST_KEY = "history_list_key";
     public static final String USER_ID = "user_id";
 
+    public static final String PAIRING_IP = "pairing_ip";
+    public static final String PAIRING_PORT = "pairing_port";
+
 }
